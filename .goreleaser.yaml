@@ -8,7 +8,7 @@ before:
 builds:
   - id: chatlog-windows-amd64
     binary: chatlog
-    main: ./cmd/chatlog
+    main: .                       # ← 根目录入口
     env:
       - CGO_ENABLED=1
       - CC=x86_64-w64-mingw32-gcc
