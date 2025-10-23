@@ -1,4 +1,4 @@
-name: Release Windows EXE only
+name: Release Windows EXE (bare build, multi-arch)
 
 on:
   push:
@@ -10,8 +10,11 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows amd64
-    runs-on: windows-latest   # ← 关键：用 Windows 环境
+    name: Build Windows binaries
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        goarch: [amd64, 386, arm64]   # 64位、32位、ARM64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,15 +24,19 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build Windows executable
+      - name: Build (bare, no flags)
         shell: bash
+        env:
+          GOOS: windows
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1   # 允许 CGO，解决 go-lame / go-silk
         run: |
-          go build -trimpath -ldflags="-s -w" -o chatlog-windows-amd64.exe ./cmd/chatlog
+          go build -o chatlog-windows-${{ matrix.goarch }}.exe ./cmd/chatlog
 
-      - name: Upload to Release
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: chatlog-windows-amd64.exe
+          files: chatlog-windows-${{ matrix.goarch }}.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
