@@ -1,49 +1,29 @@
-name: Release Windows amd64 EXE
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
-  build-windows-amd64:
-    name: Build Windows amd64
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}          # ← 所有命令跑在 MSYS2 环境
+  release:
+    name: Release Windows amd64
+    runs-on: ubuntu-latest
+    container:
+      image: goreleaser/goreleaser-cross:v1.24
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
-          install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-pkg-config
-            make
+          fetch-depth: 0
 
-      - name: Set up Go (MSYS2 外部)
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
+      - name: Fix git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build (64 位纯静态)
-        run: |
-          export CGO_ENABLED=1
-          export CC=x86_64-w64-mingw32-gcc
-          export CXX=x86_64-w64-mingw32-g++
-          go build -trimpath -ldflags="-s -w" -o chatlog-windows-amd64.exe ./cmd/chatlog
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: chatlog-windows-amd64.exe
-          generate_release_notes: true
+      - name: GoReleaser (windows/amd64 only)
+        run: goreleaser release --clean --config .goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
