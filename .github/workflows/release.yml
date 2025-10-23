@@ -1,58 +1,38 @@
-name: Release
+name: Release Windows EXE only
 
 on:
   push:
     tags:
       - 'v*'
 
-env:
-  IMAGE_NAME: ${{ github.repository }}
+permissions:
+  contents: write   # 允许上传 Release 附件
 
 jobs:
-  release:
-    name: Release Binary and Docker
+  build-windows:
+    name: Build Windows amd64
     runs-on: ubuntu-latest
-    container:
-      image: goreleaser/goreleaser-cross:v1.24
-    permissions:
-      contents: write
-      packages: write
-      id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
-          fetch-depth: 0
-      
-      - name: Fix git permissions
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          go-version: '1.21'
 
-      - name: Install UPX
-        uses: crazy-max/ghaction-upx@v3
+      - name: Build Windows executable
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w" -o chatlog-windows-amd64.exe ./cmd/chatlog
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
         with:
-          install-only: true
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Run GoReleaser
-        run: goreleaser release --clean
+          files: chatlog-windows-amd64.exe
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
